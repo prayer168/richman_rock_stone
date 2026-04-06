@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>岩石與礦物大富翁豪華版</title>
+  <style>
+    :root{
+      --bg1:#0f172a; --bg2:#1e293b; --panel:#0b1220cc; --line:#334155;
+      --gold:#fbbf24; --cyan:#38bdf8; --green:#4ade80; --red:#fb7185; --violet:#a78bfa;
+      --text:#e2e8f0; --muted:#94a3b8;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:"Microsoft JhengHei",sans-serif; color:var(--text);
+      background: radial-gradient(circle at top, #1e3a8a 0%, #0f172a 35%, #020617 100%);
+      min-height:100vh;
+    }
+    .wrap{max-width:1440px; margin:0 auto; padding:16px;}
+    .title{
+      text-align:center; margin-bottom:12px; padding:14px; border:1px solid #334155; border-radius:20px;
+      background:linear-gradient(135deg,#111827dd,#0f172acc); box-shadow:0 12px 30px rgba(0,0,0,.35);
+    }
+    .title h1{margin:0; font-size:clamp(1.5rem,3vw,2.4rem); letter-spacing:2px; color:#f8fafc}
+    .title p{margin:8px 0 0; color:var(--muted)}
+    .grid{
+      display:grid; grid-template-columns: 820px 1fr; gap:16px; align-items:start;
+    }
+    @media (max-width: 1250px){.grid{grid-template-columns:1fr}}
+    .panel{
+      background:linear-gradient(180deg,#0b1220dd,#0b1220c0); border:1px solid var(--line); border-radius:24px;
+      box-shadow:0 12px 30px rgba(0,0,0,.32); overflow:hidden;
+    }
+    .panel-h{padding:12px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:8px}
+    .panel-h h2{margin:0; font-size:1.05rem}
+    .board-wrap{padding:14px; position:relative}
+    canvas{display:block; width:100%; max-width:792px; margin:0 auto; background:#0b1220; border-radius:24px; border:1px solid #334155}
+    .side{display:grid; gap:16px}
+    .controls,.status,.log-panel,.setup,.leaderboard{padding:14px 16px}
+    .controls-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px}
+    .btn{
+      border:none; border-radius:16px; padding:12px 14px; font-size:1rem; cursor:pointer; font-weight:700;
+      color:#08111f; background:linear-gradient(135deg,#fde68a,#fbbf24); box-shadow:0 8px 18px rgba(251,191,36,.2);
+      transition:transform .12s ease, filter .12s ease;
+    }
+    .btn:hover{transform:translateY(-1px); filter:brightness(1.03)}
+    .btn:disabled{opacity:.45; cursor:not-allowed; transform:none}
+    .btn.alt{background:linear-gradient(135deg,#67e8f9,#38bdf8)}
+    .btn.green{background:linear-gradient(135deg,#86efac,#4ade80)}
+    .btn.red{background:linear-gradient(135deg,#fda4af,#fb7185)}
+    .pill{padding:6px 10px; border-radius:999px; background:#0f172a; border:1px solid #334155; color:var(--muted); font-size:.9rem}
+    .players{display:grid; gap:10px}
+    .player-card{border:1px solid #334155; border-radius:18px; padding:12px; background:#0f172acc; position:relative; overflow:hidden}
+    .player-card.active{outline:2px solid var(--gold); box-shadow:0 0 0 3px rgba(251,191,36,.12) inset}
+    .player-head{display:flex; justify-content:space-between; align-items:center; gap:12px}
+    .name{font-weight:800; font-size:1rem}
+    .money{font-weight:700; color:#fde68a}
+    .small{font-size:.88rem; color:var(--muted); margin-top:6px}
+    .prop-list{margin-top:8px; display:flex; flex-wrap:wrap; gap:6px}
+    .prop-tag{padding:4px 8px; border-radius:999px; font-size:.8rem; background:#132033; border:1px solid #314158}
+    .setup-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px}
+    .setup-grid input,.setup-grid select{
+      width:100%; padding:10px 12px; border-radius:14px; border:1px solid #334155; background:#0f172a; color:var(--text)
+    }
+    .log{height:240px; overflow:auto; display:grid; gap:8px; padding-right:4px}
+    .log-item{padding:8px 10px; border-radius:14px; background:#0f172a; border:1px solid #253041; color:#dbeafe}
+    .rank-list{display:grid; gap:8px}
+    .rank-item{display:flex; justify-content:space-between; gap:10px; padding:10px 12px; border-radius:14px; background:#0f172a; border:1px solid #253041}
+    .badge{display:inline-flex; align-items:center; gap:6px; padding:5px 9px; border-radius:999px; background:#1e293b; color:#cbd5e1; border:1px solid #334155; font-size:.82rem}
+    .overlay{
+      position:fixed; inset:0; background:rgba(2,6,23,.7); display:none; align-items:center; justify-content:center; padding:16px; z-index:30
+    }
+    .overlay.show{display:flex}
+    .modal{
+      width:min(760px,95vw); background:linear-gradient(180deg,#0f172a,#020617); border:1px solid #334155; border-radius:28px; box-shadow:0 20px 60px rgba(0,0,0,.45); overflow:hidden;
+      animation:pop .2s ease;
+    }
+    @keyframes pop{from{transform:scale(.96); opacity:0}to{transform:scale(1); opacity:1}}
+    .modal-head{padding:16px 18px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center}
+    .modal-body{padding:18px}
+    .choices{display:grid; gap:10px; margin-top:14px}
+    .choice{padding:12px 14px; border:1px solid #334155; border-radius:16px; background:#0f172a; color:var(--text); cursor:pointer; text-align:left}
+    .choice:hover{border-color:#60a5fa; background:#12203a}
+    .modal-foot{padding:0 18px 18px; display:flex; justify-content:flex-end; gap:10px}
+    .dice-box{display:flex; align-items:center; gap:12px; justify-content:center; margin:8px 0 14px}
+    .die{
+      width:62px; height:62px; border-radius:16px; display:grid; place-items:center; font-size:1.8rem; font-weight:900;
+      background:linear-gradient(135deg,#f8fafc,#cbd5e1); color:#0f172a; box-shadow:0 12px 24px rgba(148,163,184,.25)
+    }
+    .highlight{color:#fde68a; font-weight:800}
+    .footer-note{padding:10px 14px; text-align:center; color:#94a3b8; font-size:.9rem}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title panel">
+      <h1>岩石與礦物大富翁．豪華教學版</h1>
+      <p>可直接部署到 GitHub Pages｜國小高年級題庫｜音效、動畫、排行榜一次完成</p>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-h">
+          <h2>遊戲棋盤</h2>
+          <div class="pill" id="turnInfo">尚未開始</div>
+        </div>
+        <div class="board-wrap">
+          <canvas id="board" width="792" height="792"></canvas>
+        </div>
+        <div class="footer-note">玩法：擲骰前進 → 購買礦區或支付過路費 → 答對題目可拿獎勵 → 用知識和策略成為岩礦大富翁。</div>
+      </div>
+
+      <div class="side">
+        <div class="panel setup">
+          <div class="panel-h"><h2>遊戲設定</h2><span class="badge">教學版</span></div>
+          <div class="setup-grid">
+            <div>
+              <label>玩家人數</label>
+              <select id="playerCount">
+                <option value="2">2 人</option>
+                <option value="3">3 人</option>
+                <option value="4" selected>4 人</option>
+              </select>
+            </div>
+            <div>
+              <label>回合上限</label>
+              <select id="maxRounds">
+                <option value="12">12 回合</option>
+                <option value="16" selected>16 回合</option>
+                <option value="20">20 回合</option>
+              </select>
+            </div>
+            <div><label>玩家 1</label><input id="p1" value="花岡岩隊"></div>
+            <div><label>玩家 2</label><input id="p2" value="玄武岩隊"></div>
+            <div><label>玩家 3</label><input id="p3" value="大理岩隊"></div>
+            <div><label>玩家 4</label><input id="p4" value="石英隊"></div>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn green" id="startBtn">開始新遊戲</button>
+            <button class="btn alt" id="audioBtn">開啟音效</button>
+            <button class="btn" id="howBtn">玩法說明</button>
+          </div>
+        </div>
+
+        <div class="panel controls">
+          <div class="panel-h"><h2>操作區</h2><span class="badge" id="roundBadge">第 0 / 0 回合</span></div>
+          <div class="dice-box">
+            <div class="die" id="die1">🎲</div>
+            <div class="die" id="die2">🎲</div>
+          </div>
+          <div class="controls-grid">
+            <button class="btn" id="rollBtn" disabled>擲骰前進</button>
+            <button class="btn alt" id="buyBtn" disabled>購買礦區</button>
+            <button class="btn green" id="nextBtn" disabled>下一位玩家</button>
+            <button class="btn red" id="endBtn" disabled>結束遊戲</button>
+          </div>
+        </div>
+
+        <div class="panel status">
+          <div class="panel-h"><h2>玩家狀態</h2><span class="badge">即時更新</span></div>
+          <div class="players" id="players"></div>
+        </div>
+
+        <div class="panel leaderboard">
+          <div class="panel-h"><h2>本機排行榜</h2><span class="badge">localStorage</span></div>
+          <div class="rank-list" id="rankList"></div>
+        </div>
+
+        <div class="panel log-panel">
+          <div class="panel-h"><h2>遊戲紀錄</h2><span class="badge">最新 30 筆</span></div>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modalTitle" style="margin:0">訊息</h3>
+        <span class="badge" id="modalTag">教學提示</span>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-foot" id="modalFoot"></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalBody = document.getElementById('modalBody');
+  const modalFoot = document.getElementById('modalFoot');
+  const modalTag = document.getElementById('modalTag');
+
+  const state = {
+    tiles: [], players: [], current: 0, round: 0, maxRounds: 16,
+    started: false, canRoll: false, canBuy: false, pendingTile: null,
+    lastDice: [1,1], log: [], particles: [], cameraShake: 0,
+    audioEnabled: false, audioCtx: null, awaitingModal:false
+  };
+
+  const COLORS = ['#f59e0b','#38bdf8','#4ade80','#f472b6'];
+  const ICONS = ['⛰️','🪨','💎','🔷'];
+  const DIE_FACE = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+
+  const questionBank = [
+    {q:'花岡岩主要屬於哪一類岩石？', c:['火成岩','沉積岩','變質岩','礦物'], a:0, e:'花岡岩由岩漿冷卻形成，屬於火成岩。'},
+    {q:'大理岩通常是由哪一種岩石變質而成？', c:['砂岩','石灰岩','頁岩','玄武岩'], a:1, e:'石灰岩受高溫高壓後可變成大理岩。'},
+    {q:'石英最明顯的特徵之一是？', c:['容易生鏽','非常軟','常呈玻璃光澤','會浮在水面'], a:2, e:'石英常見玻璃光澤，硬度也較高。'},
+    {q:'下列哪一項比較可能是沉積岩？', c:['玄武岩','砂岩','片麻岩','大理岩'], a:1, e:'砂岩由砂粒沉積膠結形成，屬沉積岩。'},
+    {q:'礦物的硬度常用哪一種方法比較？', c:['重量法','摩氏硬度','泡水法','加熱法'], a:1, e:'摩氏硬度是常見的礦物硬度比較方式。'},
+    {q:'黑曜岩通常形成於哪種冷卻情況？', c:['非常慢','非常快','反覆融化','海底沉積'], a:1, e:'黑曜岩冷卻很快，所以常來不及形成大晶體。'},
+    {q:'煤最常被歸在什麼來源的岩石材料？', c:['生物遺骸累積','火山噴發碎屑','海水結晶','地函結晶'], a:0, e:'煤與古代植物遺骸有關。'},
+    {q:'片麻岩常見的條帶構造，和哪個過程較有關？', c:['風化','變質作用','沉積分層','侵蝕'], a:1, e:'片麻岩是高程度變質岩，常有條帶構造。'},
+    {q:'下列哪種礦物常用來製作鉛筆芯？', c:['方解石','石墨','石英','黃鐵礦'], a:1, e:'鉛筆芯主要材料是石墨，不是真正的鉛。'},
+    {q:'岩石是由什麼組成？', c:['只有一種元素','很多礦物或物質組合','只有水','只有金屬'], a:1, e:'岩石通常由一種以上礦物或其他物質組成。'},
+    {q:'玄武岩顏色通常較偏？', c:['淺色','深色','透明','彩色'], a:1, e:'玄武岩常呈深色，屬基性火成岩。'},
+    {q:'鐘乳石形成最相關的礦物是？', c:['方解石','石英','石墨','磁鐵礦'], a:0, e:'鐘乳石多與含碳酸鈣的方解石沉澱有關。'},
+    {q:'玉石常被當作裝飾材料，最主要是因為？', c:['很輕','會發光','質地細緻且美觀','一定透明'], a:2, e:'玉石因細緻、堅韌、美觀而受喜愛。'},
+    {q:'頁岩最可能在哪裡形成？', c:['火山口附近','泥沙沉積環境','岩漿庫內','地函深處'], a:1, e:'頁岩常由細小泥質沉積壓實形成。'},
+    {q:'要觀察礦物條痕，通常會怎麼做？', c:['用白瓷板摩擦','丟入水中','曬太陽','敲成粉末'], a:0, e:'條痕是礦物在無釉瓷板上留下的粉末顏色。'},
+    {q:'鑽石和石墨都是由哪一種元素組成？', c:['鐵','矽','碳','銅'], a:2, e:'它們都是碳，但排列方式不同，所以性質差很多。'}
+  ];
+
+  const chanceCards = [
+    {title:'礦坑大發現', text:'你在野外觀察時找到保存完整的礦物晶體，獲得研究獎金 120 元。', effect:p=>changeMoney(p,120)},
+    {title:'風化侵蝕', text:'採集樣本時不慎掉落，整理與補充材料花費 80 元。', effect:p=>changeMoney(p,-80)},
+    {title:'科學小講師', text:'你成功向同學介紹岩石循環，獲得 100 元教學獎勵。', effect:p=>changeMoney(p,100)},
+    {title:'標本盒破損', text:'標本盒壞掉，需要更換，支付 60 元。', effect:p=>changeMoney(p,-60)},
+    {title:'校外踏查順利', text:'踏查活動收穫豐富，向前再走 2 格。', effect:p=>movePlayer(p,2,true)},
+    {title:'實驗整理日', text:'回到起點旁的「校園地質館」整理筆記。', effect:p=>{p.pos=0; changeMoney(p,50);} },
+    {title:'地科闖關王', text:'你答題表現優秀，額外獲得 90 元。', effect:p=>changeMoney(p,90)}
+  ];
+
+  const tilesData = [
+    {name:'校園地質館', type:'start', price:0, fee:0, color:'#fbbf24', desc:'經過可領 200 元探索基金。'},
+    {name:'花岡岩谷', type:'property', group:'火成岩', price:160, fee:35, color:'#fb7185', desc:'深成火成岩代表。'},
+    {name:'知識挑戰站', type:'question', price:0, fee:0, color:'#38bdf8', desc:'答對拿 100 元，答錯拿提示。'},
+    {name:'玄武岩臺地', type:'property', group:'火成岩', price:180, fee:40, color:'#fb7185', desc:'噴出火成岩代表。'},
+    {name:'機會命運', type:'chance', price:0, fee:0, color:'#f59e0b', desc:'抽一張事件卡。'},
+    {name:'砂岩峽谷', type:'property', group:'沉積岩', price:190, fee:45, color:'#facc15', desc:'常見層理構造。'},
+    {name:'頁岩坡地', type:'property', group:'沉積岩', price:200, fee:50, color:'#facc15', desc:'由細小沉積物形成。'},
+    {name:'礦物補給站', type:'bonus', price:0, fee:0, color:'#4ade80', desc:'補給材料，領 120 元。'},
+    {name:'石灰岩洞', type:'property', group:'沉積岩', price:210, fee:55, color:'#facc15', desc:'與鐘乳石地形有關。'},
+    {name:'知識挑戰站', type:'question', price:0, fee:0, color:'#38bdf8', desc:'答題時間到！'},
+    {name:'大理岩殿堂', type:'property', group:'變質岩', price:230, fee:60, color:'#a78bfa', desc:'石灰岩變質後形成。'},
+    {name:'片麻岩高地', type:'property', group:'變質岩', price:240, fee:65, color:'#a78bfa', desc:'條帶構造明顯。'},
+    {name:'休息觀察區', type:'rest', price:0, fee:0, color:'#64748b', desc:'停留休息，不用付費。'},
+    {name:'石英晶洞', type:'property', group:'礦物', price:250, fee:70, color:'#22c55e', desc:'硬度高，常見玻璃光澤。'},
+    {name:'機會命運', type:'chance', price:0, fee:0, color:'#f59e0b', desc:'抽一張事件卡。'},
+    {name:'方解石洞穴', type:'property', group:'礦物', price:260, fee:75, color:'#22c55e', desc:'與鐘乳石形成有關。'},
+    {name:'石墨工坊', type:'property', group:'礦物', price:270, fee:80, color:'#22c55e', desc:'鉛筆芯的重要材料。'},
+    {name:'知識挑戰站', type:'question', price:0, fee:0, color:'#38bdf8', desc:'答題加分格。'},
+    {name:'黑曜岩崖', type:'property', group:'火成岩', price:280, fee:85, color:'#fb7185', desc:'冷卻迅速形成。'},
+    {name:'終極探勘區', type:'tax', price:0, fee:0, color:'#ef4444', desc:'維護設備支付 100 元。'}
+  ];
+
+  const tilePos = [];
+  const margin = 36, size = 720, cell = size/6;
+  for(let i=0;i<6;i++) tilePos.push({x:margin + size - cell*(i+1), y:margin + size - cell});
+  for(let i=1;i<5;i++) tilePos.push({x:margin, y:margin + size - cell*(i+1)});
+  for(let i=0;i<6;i++) tilePos.push({x:margin + cell*i, y:margin});
+  for(let i=1;i<5;i++) tilePos.push({x:margin + size - cell, y:margin + cell*i});
+
+  function initTiles(){
+    state.tiles = tilesData.map((t,i)=>({...t, idx:i, owner:null, level:0, x:tilePos[i].x, y:tilePos[i].y, w:cell, h:cell}));
+  }
+
+  function makePlayers(count){
+    const names = [1,2,3,4].map(i => document.getElementById('p'+i).value.trim() || `玩家${i}`);
+    state.players = Array.from({length:count}, (_,i)=>(
+      {id:i, name:names[i], money:900, pos:0, props:[], color:COLORS[i], icon:ICONS[i], answered:0, correct:0}
+    ));
+  }
+
+  function addLog(msg){
+    state.log.unshift(`${new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}｜${msg}`);
+    state.log = state.log.slice(0,30);
+    renderLog();
+  }
+
+  function renderLog(){
+    document.getElementById('log').innerHTML = state.log.map(x=>`<div class="log-item">${x}</div>`).join('');
+  }
+
+  function renderPlayers(){
+    const box = document.getElementById('players');
+    box.innerHTML = state.players.map((p,i)=>{
+      const assets = p.money + p.props.reduce((s,id)=>s+state.tiles[id].price,0);
+      return `
+      <div class="player-card ${i===state.current && state.started ? 'active':''}" style="background:linear-gradient(135deg, ${hexToRgba(p.color,.12)}, #0f172acc)">
+        <div class="player-head"><div><div class="name">${p.icon} ${p.name}</div><div class="small">位置：${state.tiles[p.pos]?.name || '-'}｜答對 ${p.correct}/${p.answered || 0}</div></div><div class="money">$ ${p.money}</div></div>
+        <div class="small">總資產估計：$ ${assets}</div>
+        <div class="prop-list">${p.props.length ? p.props.map(id=>`<span class="prop-tag">${state.tiles[id].name}</span>`).join('') : '<span class="small">尚未擁有礦區</span>'}</div>
+      </div>`;
+    }).join('');
+    document.getElementById('turnInfo').textContent = state.started ? `輪到：${state.players[state.current].name}` : '尚未開始';
+    document.getElementById('roundBadge').textContent = `第 ${state.round} / ${state.maxRounds} 回合`;
+  }
+
+  function hexToRgba(hex,a){
+    const h=hex.replace('#','');
+    const bigint=parseInt(h,16);
+    const r=(bigint>>16)&255,g=(bigint>>8)&255,b=bigint&255;
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function updateButtons(){
+    document.getElementById('rollBtn').disabled = !(state.started && state.canRoll && !state.awaitingModal);
+    document.getElementById('buyBtn').disabled = !(state.started && state.canBuy && !state.awaitingModal);
+    document.getElementById('nextBtn').disabled = !(state.started && !state.canRoll && !state.canBuy && !state.awaitingModal);
+    document.getElementById('endBtn').disabled = !state.started;
+  }
+
+  function drawBoard(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const g = ctx.createLinearGradient(0,0,0,canvas.height);
+    g.addColorStop(0,'#0f172a'); g.addColorStop(1,'#020617');
+    ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    if(state.cameraShake>0){
+      ctx.save();
+      ctx.translate((Math.random()-.5)*state.cameraShake,(Math.random()-.5)*state.cameraShake);
+      state.cameraShake *= 0.88;
+      if(state.cameraShake<0.2) state.cameraShake = 0;
+    }
+
+    // center art
+    ctx.save();
+    ctx.fillStyle='rgba(59,130,246,.08)';
+    ctx.beginPath(); ctx.arc(396,396,170,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(148,163,184,.18)'; ctx.lineWidth=2;
+    for(let r=110;r<=170;r+=30){ctx.beginPath(); ctx.arc(396,396,r,0,Math.PI*2); ctx.stroke();}
+    ctx.fillStyle='#e2e8f0'; ctx.textAlign='center';
+    ctx.font='bold 42px Microsoft JhengHei'; ctx.fillText('岩石與礦物',396,365);
+    ctx.font='bold 32px Microsoft JhengHei'; ctx.fillStyle='#fbbf24'; ctx.fillText('大富翁豪華版',396,410);
+    ctx.font='20px Microsoft JhengHei'; ctx.fillStyle='#94a3b8'; ctx.fillText('Rock & Mineral Monopoly',396,445);
+    ctx.restore();
+
+    state.tiles.forEach((t,i)=>drawTile(t,i));
+    drawPlayersOnBoard();
+    drawParticles();
+
+    if(state.cameraShake>0) ctx.restore();
+    requestAnimationFrame(drawBoard);
+  }
+
+  function drawTile(t,i){
+    const isCorner = i===0 || i===5 || i===10 || i===15;
+    const x=t.x,y=t.y,w=t.w,h=t.h;
+    ctx.save();
+    ctx.fillStyle='#0b1220';
+    roundRect(ctx,x+2,y+2,w-4,h-4,16,true,false);
+    ctx.strokeStyle='#475569'; ctx.lineWidth=2; roundRect(ctx,x+2,y+2,w-4,h-4,16,false,true);
+    ctx.fillStyle=t.color; ctx.globalAlpha=.9;
+    if(y===margin) ctx.fillRect(x+8,y+8,w-16,16);
+    else if(y===margin+size-cell) ctx.fillRect(x+8,y+h-24,w-16,16);
+    else if(x===margin) ctx.fillRect(x+8,y+8,16,h-16);
+    else ctx.fillRect(x+w-24,y+8,16,h-16);
+    ctx.globalAlpha=1;
+
+    if(t.owner!==null){
+      ctx.fillStyle=state.players[t.owner].color;
+      ctx.globalAlpha=.25;
+      roundRect(ctx,x+10,y+10,w-20,h-20,12,true,false);
+      ctx.globalAlpha=1;
+    }
+
+    ctx.fillStyle='#f8fafc'; ctx.textAlign='center';
+    ctx.font = isCorner ? 'bold 18px Microsoft JhengHei' : 'bold 15px Microsoft JhengHei';
+    wrapText(t.name,x+w/2,y+36,w-24,20);
+    ctx.fillStyle='#cbd5e1'; ctx.font='12px Microsoft JhengHei';
+    wrapText(t.desc,x+w/2,y+h/2+6,w-26,16);
+    if(t.type==='property'){
+      ctx.fillStyle='#fde68a'; ctx.font='bold 14px Microsoft JhengHei';
+      ctx.fillText(`$${t.price} / 過路 $${tileFee(t)}`,x+w/2,y+h-14);
+    }
+    ctx.restore();
+  }
+
+  function tileFee(tile){
+    return tile.fee + tile.level*20;
+  }
+
+  function drawPlayersOnBoard(){
+    const groups = {};
+    state.players.forEach(p=>{(groups[p.pos] ||= []).push(p)});
+    Object.entries(groups).forEach(([pos,arr])=>{
+      const t = state.tiles[+pos];
+      arr.forEach((p,idx)=>{
+        const px = t.x + 28 + (idx%2)*34;
+        const py = t.y + t.h - 30 - Math.floor(idx/2)*32;
+        ctx.save();
+        ctx.beginPath(); ctx.arc(px,py,13,0,Math.PI*2); ctx.fillStyle=p.color; ctx.fill();
+        ctx.lineWidth=3; ctx.strokeStyle='#fff'; ctx.stroke();
+        ctx.fillStyle='#08111f'; ctx.font='bold 16px Microsoft JhengHei'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(p.icon,px,py+1);
+        ctx.restore();
+      });
+    });
+  }
+
+  function drawParticles(){
+    state.particles = state.particles.filter(pt=>pt.life>0);
+    state.particles.forEach(pt=>{
+      pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.02; pt.life -= 1;
+      ctx.save(); ctx.globalAlpha = pt.life/pt.maxLife; ctx.fillStyle = pt.color;
+      ctx.beginPath(); ctx.arc(pt.x,pt.y,pt.r,0,Math.PI*2); ctx.fill(); ctx.restore();
+    });
+  }
+
+  function explode(x,y,color,count=28){
+    for(let i=0;i<count;i++) state.particles.push({x,y,vx:(Math.random()-.5)*4,vy:(Math.random()-.5)*4,r:2+Math.random()*4,life:40+Math.random()*24,maxLife:64,color});
+  }
+
+  function roundRect(ctx,x,y,w,h,r,fill,stroke){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r);
+    if(fill) ctx.fill(); if(stroke) ctx.stroke();
+  }
+
+  function wrapText(text,x,y,maxWidth,lineHeight){
+    const words = text.split(''); let line=''; let lines=[];
+    for(const ch of words){
+      const test=line+ch; if(ctx.measureText(test).width > maxWidth && line){lines.push(line); line=ch;} else line=test;
+    }
+    if(line) lines.push(line);
+    lines.slice(0,3).forEach((l,i)=>ctx.fillText(l,x,y+i*lineHeight));
+  }
+
+  function randomInt(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+
+  function ensureAudio(){
+    if(!state.audioCtx){
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      state.audioCtx = new AudioContext();
+    }
+    if(state.audioCtx.state === 'suspended') state.audioCtx.resume();
+  }
+
+  function playTone(freq=440,dur=.12,type='sine',gain=.04,delay=0){
+    if(!state.audioEnabled) return;
+    ensureAudio();
+    const ctxA=state.audioCtx; const o=ctxA.createOscillator(); const g=ctxA.createGain();
+    o.type=type; o.frequency.value=freq; g.gain.value=0.0001;
+    o.connect(g); g.connect(ctxA.destination);
+    const start=ctxA.currentTime+delay;
+    g.gain.exponentialRampToValueAtTime(gain,start+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001,start+dur);
+    o.start(start); o.stop(start+dur+0.02);
+  }
+  function sfxRoll(){[0,1,2,3,4,5].forEach(i=>playTone(260+i*30,0.04,'square',0.02,i*0.03))}
+  function sfxMove(){playTone(520,.07,'triangle',.03); playTone(680,.08,'triangle',.02,.08)}
+  function sfxBuy(){playTone(523,.08,'sine',.03); playTone(659,.08,'sine',.03,.08); playTone(784,.14,'sine',.04,.16)}
+  function sfxGood(){playTone(660,.1,'triangle',.03); playTone(880,.16,'triangle',.04,.1)}
+  function sfxBad(){playTone(240,.12,'sawtooth',.04); playTone(180,.16,'sawtooth',.03,.1)}
+  function sfxWin(){[523,659,784,1046].forEach((f,i)=>playTone(f,.18,'triangle',.04,i*.08))}
+
+  function showModal({title, body, tag='教學提示', buttons=[]}){
+    state.awaitingModal=true; updateButtons();
+    modalTitle.textContent = title; modalTag.textContent = tag; modalBody.innerHTML = body;
+    modalFoot.innerHTML = '';
+    buttons.forEach(btn=>{
+      const b=document.createElement('button'); b.className=`btn ${btn.className||''}`; b.textContent=btn.label;
+      b.onclick=()=>{ hideModal(); btn.onClick && btn.onClick(); };
+      modalFoot.appendChild(b);
+    });
+    overlay.classList.add('show');
+  }
+  function hideModal(){ overlay.classList.remove('show'); state.awaitingModal=false; updateButtons(); }
+
+  function startGame(){
+    initTiles();
+    const count = +document.getElementById('playerCount').value;
+    state.maxRounds = +document.getElementById('maxRounds').value;
+    makePlayers(count);
+    state.current=0; state.round=1; state.started=true; state.canRoll=true; state.canBuy=false; state.pendingTile=null; state.log=[];
+    document.getElementById('die1').textContent='🎲'; document.getElementById('die2').textContent='🎲';
+    addLog(`🎮 新遊戲開始，共 ${count} 位玩家，回合上限 ${state.maxRounds}。`);
+    addLog(`👉 輪到 ${state.players[0].name}。`);
+    renderPlayers(); updateButtons();
+    showModal({title:'豪華版玩法', tag:'開始遊戲', body:`
+      <p>每位玩家起始資金 <span class="highlight">900 元</span>。</p>
+      <p>踏上礦區可以購買，別人踩到你的礦區要付過路費。</p>
+      <p>遇到 <span class="highlight">知識挑戰站</span>，答對可得 100 元；答錯也會看到解析。</p>
+      <p>遊戲到達回合上限或有人按下結束時，依<span class="highlight">現金＋礦區價值</span>排名。</p>`,
+      buttons:[{label:'開始冒險', className:'green'}]
+    });
+  }
+
+  function rollDice(){
+    const p=state.players[state.current];
+    state.canRoll=false; updateButtons(); sfxRoll();
+    let ticks=12;
+    const timer=setInterval(()=>{
+      const d1=randomInt(1,6), d2=randomInt(1,6);
+      document.getElementById('die1').textContent=DIE_FACE[d1-1];
+      document.getElementById('die2').textContent=DIE_FACE[d2-1];
+      ticks--;
+      if(ticks<=0){
+        clearInterval(timer);
+        const d1f=randomInt(1,6), d2f=randomInt(1,6), steps=d1f+d2f;
+        state.lastDice=[d1f,d2f];
+        document.getElementById('die1').textContent=DIE_FACE[d1f-1];
+        document.getElementById('die2').textContent=DIE_FACE[d2f-1];
+        addLog(`🎲 ${p.name} 擲出 ${d1f} + ${d2f} = ${steps}`);
+        animateMove(p,steps,()=>resolveLanding(p));
+      }
+    },80);
+  }
+
+  function animateMove(player,steps,done){
+    let moved=0;
+    const timer=setInterval(()=>{
+      player.pos=(player.pos+1)%state.tiles.length;
+      if(player.pos===0){ changeMoney(player,200); addLog(`🏛️ ${player.name} 經過起點，獲得 200 元探索基金。`); }
+      sfxMove(); moved++; renderPlayers();
+      if(moved>=steps){ clearInterval(timer); done(); }
+    },240);
+  }
+
+  function changeMoney(player,amount){
+    player.money += amount;
+    renderPlayers();
+  }
+
+  function movePlayer(player,steps,instant=false){
+    if(instant){
+      for(let i=0;i<steps;i++){
+        player.pos=(player.pos+1)%state.tiles.length;
+        if(player.pos===0) changeMoney(player,200);
+      }
+      renderPlayers();
+      resolveLanding(player);
+    }
+  }
+
+  function resolveLanding(player){
+    const tile = state.tiles[player.pos];
+    state.pendingTile = tile;
+    addLog(`📍 ${player.name} 抵達「${tile.name}」。`);
+    const cx = tile.x + tile.w/2, cy = tile.y + tile.h/2;
+    explode(cx,cy,tile.color,20); state.cameraShake = 3;
+
+    if(tile.type==='property'){
+      if(tile.owner===null){
+        state.canBuy = player.money >= tile.price;
+        showModal({title:`抵達 ${tile.name}`, tag:tile.group, body:`
+          <p>${tile.desc}</p>
+          <p>售價：<span class="highlight">${tile.price} 元</span></p>
+          <p>過路費：<span class="highlight">${tileFee(tile)} 元</span></p>
+          <p>${state.canBuy ? '你可以選擇購買這座礦區。' : '資金不足，暫時無法購買。'}</p>
+        `, buttons:[{label:'知道了', className:'alt'}]});
+      } else if(tile.owner!==player.id){
+        const fee = tileFee(tile);
+        changeMoney(player,-fee); changeMoney(state.players[tile.owner],fee);
+        addLog(`💸 ${player.name} 支付 ${fee} 元過路費給 ${state.players[tile.owner].name}。`);
+        sfxBad();
+        showModal({title:'支付過路費', tag:'礦區收費', body:`<p>這座礦區屬於 <span class="highlight">${state.players[tile.owner].name}</span>。</p><p>${player.name} 支付 <span class="highlight">${fee} 元</span> 過路費。</p>`, buttons:[{label:'繼續', className:'alt'}]});
+      } else {
+        addLog(`🏠 ${player.name} 回到自己的礦區。`);
+        showModal({title:'回到自己的礦區', body:`<p>這裡是你的地盤：<span class="highlight">${tile.name}</span>。</p><p>安全通過，本回合不需額外支付。</p>`, buttons:[{label:'繼續'}]});
+      }
+    } else if(tile.type==='question') askQuestion(player);
+    else if(tile.type==='chance') drawChance(player);
+    else if(tile.type==='bonus'){
+      changeMoney(player,120); sfxGood(); addLog(`🎁 ${player.name} 在補給站獲得 120 元。`);
+      showModal({title:'礦物補給站', tag:'獎勵', body:`<p>你補充了觀察工具與標本材料，獲得 <span class="highlight">120 元</span>。</p>`, buttons:[{label:'太好了', className:'green'}]});
+    } else if(tile.type==='tax'){
+      changeMoney(player,-100); sfxBad(); addLog(`🧾 ${player.name} 支付設備維護費 100 元。`);
+      showModal({title:'終極探勘區', tag:'支出', body:`<p>探勘設備需要維護，支付 <span class="highlight">100 元</span>。</p>`, buttons:[{label:'了解', className:'red'}]});
+    } else if(tile.type==='rest'){
+      showModal({title:'休息觀察區', tag:'休息', body:`<p>你在這裡稍作休息，整理岩石筆記。</p><p>本回合無額外事件。</p>`, buttons:[{label:'繼續'}]});
+    } else if(tile.type==='start'){
+      showModal({title:'校園地質館', tag:'起點', body:`<p>回到校園地質館，整理今天的觀察成果。</p>`, buttons:[{label:'繼續'}]});
+    }
+    renderPlayers(); updateButtons();
+  }
+
+  function buyProperty(){
+    const p = state.players[state.current], tile = state.pendingTile;
+    if(!tile || tile.type!=='property' || tile.owner!==null || p.money<tile.price) return;
+    changeMoney(p,-tile.price); tile.owner=p.id; p.props.push(tile.idx); state.canBuy=false;
+    explode(tile.x+tile.w/2,tile.y+tile.h/2,p.color,34); state.cameraShake=8; sfxBuy();
+    addLog(`🛒 ${p.name} 買下 ${tile.name}，花費 ${tile.price} 元。`);
+    renderPlayers(); updateButtons();
+    showModal({title:'購買成功', tag:'地產取得', body:`<p><span class="highlight">${p.name}</span> 成功買下 <span class="highlight">${tile.name}</span>。</p><p>之後其他玩家踩到這格，就要支付過路費。</p>`, buttons:[{label:'太棒了', className:'green'}]});
+  }
+
+  function askQuestion(player){
+    const q = questionBank[randomInt(0,questionBank.length-1)];
+    player.answered++;
+    const buttons = q.c.map((choice,i)=>(
+      {label: `${String.fromCharCode(65+i)}. ${choice}`, className:'alt', onClick:()=>{
+        const correct = i===q.a;
+        if(correct){ player.correct++; changeMoney(player,100); sfxGood(); addLog(`✅ ${player.name} 答對題目，獲得 100 元。`); }
+        else { sfxBad(); addLog(`❌ ${player.name} 答錯題目。`); }
+        showModal({title: correct ? '答對了！' : '再想想也沒關係', tag:'題目解析', body:`<p><strong>${q.q}</strong></p><p>正確答案：<span class="highlight">${q.c[q.a]}</span></p><p>${q.e}</p>${correct ? '<p>你獲得 <span class="highlight">100 元</span> 獎勵。</p>' : '<p>這次沒有得分，但學到知識也很重要！</p>'}`, buttons:[{label:'繼續遊戲', className: correct?'green':'red'}]});
+        renderPlayers();
+      }}
+    ));
+    showModal({title:'知識挑戰站', tag:'國小高年級題庫', body:`<p><strong>${q.q}</strong></p><p>請選出正確答案：</p>`, buttons});
+  }
+
+  function drawChance(player){
+    const card = chanceCards[randomInt(0,chanceCards.length-1)];
+    addLog(`🎴 ${player.name} 抽到事件卡：${card.title}`);
+    showModal({title:card.title, tag:'機會命運', body:`<p>${card.text}</p>`, buttons:[{label:'執行事件', className:'green', onClick:()=>{card.effect(player); renderPlayers();}}]});
+  }
+
+  function nextTurn(){
+    state.canBuy=false; state.pendingTile=null;
+    if(state.current === state.players.length-1){
+      state.current=0; state.round++;
+      if(state.round > state.maxRounds){ endGame(); return; }
+    } else state.current++;
+    state.canRoll=true; updateButtons(); renderPlayers();
+    addLog(`👉 輪到 ${state.players[state.current].name}。`);
+  }
+
+  function calcAssets(p){ return p.money + p.props.reduce((s,id)=>s+state.tiles[id].price,0); }
+
+  function saveLeaderboard(results){
+    const old = JSON.parse(localStorage.getItem('rockMineralLeaderboard') || '[]');
+    const stamp = new Date().toLocaleString('zh-TW');
+    const merged = [...results.map((r,i)=>({name:r.name, score:r.assets, rank:i+1, date:stamp})), ...old].sort((a,b)=>b.score-a.score).slice(0,10);
+    localStorage.setItem('rockMineralLeaderboard', JSON.stringify(merged));
+    renderLeaderboard();
+  }
+
+  function renderLeaderboard(){
+    const data = JSON.parse(localStorage.getItem('rockMineralLeaderboard') || '[]');
+    const box = document.getElementById('rankList');
+    box.innerHTML = data.length ? data.map((r,i)=>`<div class="rank-item"><div>${['🥇','🥈','🥉'][i] || '🏅'} ${r.name}<div class="small">${r.date}</div></div><div style="font-weight:800;color:#fde68a">${r.score}</div></div>`).join('') : '<div class="small">尚無紀錄，開始一場遊戲吧！</div>';
+  }
+
+  function endGame(){
+    state.started=false; state.canRoll=false; state.canBuy=false; updateButtons();
+    const results = state.players.map(p=>({name:p.name, assets:calcAssets(p), money:p.money, props:p.props.length, correct:p.correct, answered:p.answered})).sort((a,b)=>b.assets-a.assets);
+    saveLeaderboard(results); sfxWin();
+    const rows = results.map((r,i)=>`<tr><td style="padding:8px">${i+1}</td><td style="padding:8px">${r.name}</td><td style="padding:8px">${r.assets}</td><td style="padding:8px">${r.money}</td><td style="padding:8px">${r.props}</td><td style="padding:8px">${r.correct}/${r.answered}</td></tr>`).join('');
+    showModal({title:'遊戲結束', tag:'最終排行榜', body:`<p>冠軍是 <span class="highlight">${results[0].name}</span>！</p>
+      <table style="width:100%; border-collapse:collapse; margin-top:10px; border:1px solid #334155">
+      <thead><tr style="background:#132033"><th style="padding:8px">名次</th><th style="padding:8px">玩家</th><th style="padding:8px">總資產</th><th style="padding:8px">現金</th><th style="padding:8px">礦區數</th><th style="padding:8px">答題</th></tr></thead><tbody>${rows}</tbody></table>`,
+      buttons:[{label:'再玩一次', className:'green', onClick:startGame},{label:'關閉', className:'alt'}]});
+    addLog(`🏁 遊戲結束，冠軍：${results[0].name}。`);
+  }
+
+  document.getElementById('startBtn').onclick = startGame;
+  document.getElementById('rollBtn').onclick = rollDice;
+  document.getElementById('buyBtn').onclick = buyProperty;
+  document.getElementById('nextBtn').onclick = nextTurn;
+  document.getElementById('endBtn').onclick = endGame;
+  document.getElementById('audioBtn').onclick = ()=>{
+    state.audioEnabled = !state.audioEnabled;
+    if(state.audioEnabled) ensureAudio();
+    document.getElementById('audioBtn').textContent = state.audioEnabled ? '音效已開啟' : '開啟音效';
+    addLog(state.audioEnabled ? '🔊 音效已開啟。' : '🔇 音效已關閉。');
+  };
+  document.getElementById('howBtn').onclick = ()=>showModal({title:'玩法說明', tag:'操作指南', body:`
+    <ol>
+      <li>按 <span class="highlight">開始新遊戲</span> 設定玩家後開局。</li>
+      <li>輪到你時按 <span class="highlight">擲骰前進</span>。</li>
+      <li>停在空白礦區可按 <span class="highlight">購買礦區</span>。</li>
+      <li>停在知識挑戰站，回答岩石與礦物題目。</li>
+      <li>回合結束按 <span class="highlight">下一位玩家</span>。</li>
+      <li>最後依現金＋礦區價值排名。</li>
+    </ol>
+  `, buttons:[{label:'知道了'}]});
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) hideModal(); });
+
+  initTiles(); renderPlayers(); renderLog(); renderLeaderboard(); updateButtons(); drawBoard();
+})();
+</script>
+</body>
+</html>
